@@ -128,6 +128,45 @@ EOXSL
         result = xsl.transform @xml
         assert_equal 'FOO', result.css('title').first.text
       end
+
+      def test_function_from_module_XSLT
+        skip("Pure Java version doesn't support this feature.") if !Nokogiri.uses_libxml?
+
+        foo = Class.new do
+          include TestFunctionModule
+        end
+
+        assert_equal true, foo.instance_methods.include?(:america)
+
+        xsl = Nokogiri.XSLT(<<-EOXSL, "http://e.org/functions" => foo)
+<?xml version="1.0"?>
+<xsl:stylesheet version="1.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:f="http://e.org/functions"
+  extension-element-prefixes="f">
+
+  <xsl:template match="text()">
+    <xsl:copy-of select="f:america(.)"/>
+  </xsl:template>
+
+  <xsl:template match="@*|node()">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()"/>
+      <xsl:apply-imports/>
+    </xsl:copy>
+  </xsl:template>
+
+</xsl:stylesheet>
+EOXSL
+        result = xsl.transform @xml
+        assert_equal 'FOO', result.css('title').first.text
+      end
+    end
+
+    module TestFunctionModule
+      def america nodes
+        nodes.first.content.upcase
+      end
     end
   end
 end
